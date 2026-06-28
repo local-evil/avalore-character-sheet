@@ -452,6 +452,12 @@ body { min-height: 100vh; }
 .exp-status-warn { color: var(--text-warning); }
 .exp-status-over { color: var(--text-danger); }
 
+
+/* ── Locked options: visually greyed but still hoverable ── */
+option[data-locked="true"] {
+  color: var(--text-muted);
+}
+
 </style>
 </head>
 <body>
@@ -901,7 +907,8 @@ function makeFeatSel(idx,currentVal,ch){
     FEATS.filter(f=>f.cat===cat).forEach(f=>{
       const chk=checkFeatReq(f,ch);
       const tip=!chk.met?chk.reason:(f.req!=='None'&&f.req!=='Mutant'?'Requires: '+f.req:'');
-      html+=`<option value="${f.name}"${currentVal===f.name?' selected':''}${!chk.met?' disabled':''} title="${tip}">${!chk.met?'○ ':''}${f.name}${f.limited?' ✦':''}${!chk.met?' ('+chk.reason+')':''}</option>`;
+      const locked=!chk.met?' data-locked="true"':'';
+      html+=`<option value="${f.name}"${currentVal===f.name?' selected':''}${locked} title="${tip}">${!chk.met?'○ ':''}${f.name}${f.limited?' ✦':''}${!chk.met?' ('+chk.reason+')':''}</option>`;
     });
     html+=`</optgroup>`;
   });
@@ -997,11 +1004,20 @@ function buildExps(){
 
   tbody.querySelectorAll('.exp-sel:not(.mage-hind-sel):not(.mut-hind-sel)').forEach(s=>{
     s.addEventListener('change',ev=>{
+      // If the chosen option is locked, revert to previous value silently
+      const chosen=ev.target.options[ev.target.selectedIndex];
+      if(chosen&&chosen.dataset.locked){
+        ev.target.value=ev.target.dataset.lastVal||'';
+        return;
+      }
+      ev.target.dataset.lastVal=ev.target.value;
       const i=parseInt(ev.target.dataset.i),f=ev.target.dataset.f;
       ch.exps[i][f]=ev.target.value;
       if(f==='target'){const feat=FEATS.find(x=>x.name===ev.target.value);if(!feat||feat.cat!=='Mutation')ch.exps[i].hindrance='';}
       refreshAll();
     });
+    // Store initial value for revert
+    s.addEventListener('mousedown',ev=>{ ev.currentTarget.dataset.lastVal=ev.currentTarget.value; });
   });
   tbody.querySelectorAll('.mut-hind-sel').forEach(s=>{
     s.addEventListener('change',ev=>{ch.exps[parseInt(ev.target.dataset.i)].hindrance=ev.target.value;refreshAll();});
